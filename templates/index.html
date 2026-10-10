@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AppyAI - Tailored Job Applications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body class="landing-page">
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <span class="brand-mark">✦</span>
+          <span class="brand-name">APPYAI</span>
+        </div>
+        <nav class="main-nav">
+          <a href="#">Features</a>
+          <a href="#">How it works</a>
+          <a href="#">Pricing</a>
+        </nav>
+        <div class="header-actions">
+          <a class="link-button" href="#">Sign In</a>
+          <a class="primary-button" href="{{ url_for('application') }}">Get Started</a>
+        </div>
+      </header>
+
+      <main class="hero">
+        <div class="hero-copy">
+          <h1>Turn any job description into a tailored job application.</h1>
+          <p>
+            Upload a job posting, your CV and optional cover letter. Let AI do the rest — create,
+            optimize and tailor your documents so you can get hired.
+          </p>
+          <a class="primary-button large-button" href="{{ url_for('application') }}">Create Application →</a>
+        </div>
+
+        <div class="feature-card-row">
+          <div class="feature-card success-card">
+            <div class="mini-badge">AI Powered</div>
+            <div class="feature-content">
+              <div class="icon-box document">📄</div>
+              <div>
+                <div class="feature-label">CV / Resume</div>
+                <div class="feature-value">91% match</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="feature-card success-card">
+            <div class="mini-badge">AI Powered</div>
+            <div class="feature-content">
+              <div class="icon-box letter">✉️</div>
+              <div>
+                <div class="feature-label">Cover Letter</div>
+                <div class="feature-value">Ready</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

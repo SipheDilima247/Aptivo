@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body class="dashboard-page">
+    <div class="dashboard-shell">
+      <header class="topbar dark-row">
+        <div class="brand-wrap">
+          <span class="brand-mark">✦</span>
+          <span class="brand-name">APPYAI</span>
+        </div>
+        <div class="header-actions">
+          <a class="primary-button" href="{{ url_for('application') }}">New Application</a>
+        </div>
+      </header>
+
+      <main class="dashboard-main">
+        <h1>Recent Applications</h1>
+        {% if applications %}
+          <div class="application-list">
+            {% for app in applications %}
+              <article class="app-card">
+                <div class="app-head">
+                  <div>
+                    <h2>{{ app["role"] }}</h2>
+                    <p>{{ app["company"] }}</p>
+                  </div>
+                  <span class="chip">{{ app["match_score"] }}% match</span>
+                </div>
+                <p class="app-summary">{{ app["summary"] }}</p>
+                <a href="{{ url_for('result', application_id=app['id']) }}" class="text-link">View result →</a>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <h2>No saved applications yet.</h2>
+            <p>Start with your first job application and let the system tailor the answer.</p>
+          </div>
+        {% endif %}
+      </main>
+    </div>
+  </body>
+</html>

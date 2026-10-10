@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Application Summary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body class="result-page">
+    <div class="result-shell">
+      <header class="result-header">
+        <a href="{{ url_for('application') }}" class="back-link">← New Application</a>
+        <div class="wizard-counter">Application Ready</div>
+      </header>
+
+      <main class="result-grid">
+        <section class="score-card panel">
+          <div class="score-topline">AI Match Score</div>
+          <div class="score-value">{{ application["match_score"] }}%</div>
+          <p>{{ application["summary"] }}</p>
+        </section>
+
+        <section class="panel">
+          <h3>Role Summary</h3>
+          <div class="info-row"><span>Company</span><strong>{{ application["company"] }}</strong></div>
+          <div class="info-row"><span>Role</span><strong>{{ application["role"] }}</strong></div>
+          <div class="info-row"><span>Generated</span><strong>Cover Letter ready</strong></div>
+        </section>
+
+        <section class="panel highlight-panel">
+          <h3>Key Strengths</h3>
+          <ul>
+            {% for point in strengths %}
+            <li>{{ point }}</li>
+            {% endfor %}
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h3>Opportunities</h3>
+          <ul>
+            {% if gaps %}
+              {% for point in gaps %}
+              <li>{{ point }}</li>
+              {% endfor %}
+            {% else %}
+              <li>No major gaps detected. Your profile already demonstrates strong alignment.</li>
+            {% endif %}
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h3>Tailored CV / Resume</h3>
+          <form method="post" action="{{ url_for('download_cv', application_id=application['id']) }}">
+            <textarea name="tailored_cv" rows="14">{{ application["tailored_cv"] }}</textarea>
+            <div class="editor-actions">
+              <button type="submit" formaction="{{ url_for('save_documents', application_id=application['id']) }}" class="secondary-button">Save CV</button>
+              <button type="submit" class="primary-button">Download CV PDF</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel cover-letter-panel">
+          <h3>Tailored Cover Letter</h3>
+          <form method="post" action="{{ url_for('download_cover_letter', application_id=application['id']) }}">
+            <textarea name="cover_letter" rows="14">{{ application["cover_letter"] }}</textarea>
+            <div class="editor-actions">
+              <button type="submit" formaction="{{ url_for('save_documents', application_id=application['id']) }}" class="secondary-button">Save Letter</button>
+              <button type="submit" class="primary-button">Download Letter PDF</button>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <div class="result-actions">
+        <a href="{{ url_for('application') }}" class="secondary-button">Create New</a>
+        <a href="{{ url_for('dashboard') }}" class="primary-button">View Dashboard</a>
+      </div>
+    </div>
+  </body>
+</html>
