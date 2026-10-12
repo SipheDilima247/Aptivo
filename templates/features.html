@@ -3,19 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Features | AppyAI</title>
+    <title>Features | Aptivo</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body class="feature-layout">
     <div class="app-shell">
-      <aside class="side-nav">
-        <div class="brand-wrap">
+      <!-- <aside class="side-nav">
+        <a class="side-link" href="{{ url_for('index') }}"><div class="brand-wrap">
           <span class="brand-mark">✦</span>
-          <span class="brand-name">APPYAI</span>
-        </div>
+          <span class="brand-name">APTIVO</span>
+        </div></a>
 
         <nav class="side-nav-menu">
-          <a class="side-link" href="{{ url_for('index') }}"><span class="nav-icon">▣</span> Dashboard</a>
           <a class="side-link active" href="{{ url_for('features') }}"><span class="nav-icon">◫</span> Features</a>
           <a class="side-link" href="{{ url_for('how_it_works') }}"><span class="nav-icon">◌</span> How it works</a>
           <a class="side-link" href="{{ url_for('application') }}"><span class="nav-icon">✎</span> My Applications</a>
@@ -30,21 +29,37 @@
           <p>Check out our quick start guide or visit our help center.</p>
           <a href="#" class="text-link">Learn more →</a>
         </div>
-      </aside>
+      </aside> -->
 
       <main class="content-panel">
         <div class="topbar-inline doc-shell">
-          <a href="{{ url_for('index') }}" class="back-link-inline">← Back to Dashboard</a>
-          <div class="user-chip">
+          <!-- <a href="{{ url_for('index') }}" class="back-link-inline">← Back to Dashboard</a> -->
+          <!-- <div class="user-chip">
             <span class="user-avatar">JD</span>
             John Doe
-          </div>
+          </div> -->
         </div>
+
+        <header class="topbar">
+        <a class="side-link" href="{{ url_for('index') }}"><div class="brand-wrap">
+          <span class="brand-mark">✦</span>
+          <span class="brand-name">APTIVO</span>
+        </div>
+        <nav class="main-nav">
+          <a href="{{ url_for('features') }}" class="active">Features</a>
+          <a href="{{ url_for('how_it_works') }}">How it works</a>
+          <a href="#">Pricing</a>
+        </nav>
+        <div class="header-actions">
+          <a class="link-button" href="#">Sign In</a>
+          <a class="primary-button" href="{{ url_for('application') }}">Get Started</a>
+        </div>
+      </header>
 
         <div class="doc-shell">
           <header class="doc-header">
             <h1>Features</h1>
-            <p>Take advantage of everything APPYAI has to offer.</p>
+            <p>Take advantage of everything APTIVO has to offer.</p>
           </header>
 
           <section class="feature-banner">
@@ -133,7 +148,7 @@
 
           <section style="margin-top: 42px;">
             <div style="display: flex; justify-content: space-between; gap: 30px; align-items: center; margin-bottom: 18px;">
-              <h2 style="margin: 0; font-size: 2rem; letter-spacing: -0.06em;">Why Use APPYAI?</h2>
+              <h2 style="margin: 0; font-size: 2rem; letter-spacing: -0.06em;">Why Use APTIVO?</h2>
             </div>
             <p style="margin: 0 0 22px; color: #657494;">Save time, stand out, get hired.</p>
 

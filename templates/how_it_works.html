@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>How It Works | AppyAI</title>
+    <title>How It Works | Aptivo</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body class="how-layout">
     <div class="app-shell">
-      <aside class="side-nav">
+      <!-- <aside class="side-nav">
         <div class="brand-wrap">
           <span class="brand-mark">✦</span>
-          <span class="brand-name">APPYAI</span>
+          <span class="brand-name">APTIVO</span>
         </div>
 
         <nav class="side-nav-menu">
@@ -30,16 +30,32 @@
           <p>Start with a job description and let APPYAI do the rest.</p>
           <a href="#" class="text-link">Learn more →</a>
         </div>
-      </aside>
+      </aside> -->
 
       <main class="content-panel">
         <div class="topbar-inline doc-shell">
-          <a href="{{ url_for('index') }}" class="back-link-inline">← Back to Dashboard</a>
+          <!-- <a href="{{ url_for('index') }}" class="back-link-inline">← Back to Dashboard</a>
           <div class="user-chip">
             <span class="user-avatar">JD</span>
             John Doe
-          </div>
+          </div> -->
         </div>
+
+        <header class="topbar">
+        <a class="side-link" href="{{ url_for('index') }}"><div class="brand-wrap">
+          <span class="brand-mark">✦</span>
+          <span class="brand-name">APTIVO</span>
+        </div>
+        <nav class="main-nav">
+          <a href="{{ url_for('features') }}" class="active">Features</a>
+          <a href="{{ url_for('how_it_works') }}">How it works</a>
+          <a href="#">Pricing</a>
+        </nav>
+        <div class="header-actions">
+          <a class="link-button" href="#">Sign In</a>
+          <a class="primary-button" href="{{ url_for('application') }}">Get Started</a>
+        </div>
+      </header>
 
         <div class="doc-shell">
           <header class="doc-header">
