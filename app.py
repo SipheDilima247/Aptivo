@@ -216,6 +216,16 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/features")
+def features():
+    return render_template("features.html")
+
+
+@app.route("/how-it-works")
+def how_it_works():
+    return render_template("how_it_works.html")
+
+
 @app.route("/application")
 def application():
     return render_template("application.html")

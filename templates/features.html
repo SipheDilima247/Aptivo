@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Features | AppyAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body class="feature-layout">
+    <div class="app-shell">
+      <aside class="side-nav">
+        <div class="brand-wrap">
+          <span class="brand-mark">✦</span>
+          <span class="brand-name">APPYAI</span>
+        </div>
+
+        <nav class="side-nav-menu">
+          <a class="side-link" href="{{ url_for('index') }}"><span class="nav-icon">▣</span> Dashboard</a>
+          <a class="side-link active" href="{{ url_for('features') }}"><span class="nav-icon">◫</span> Features</a>
+          <a class="side-link" href="{{ url_for('how_it_works') }}"><span class="nav-icon">◌</span> How it works</a>
+          <a class="side-link" href="{{ url_for('application') }}"><span class="nav-icon">✎</span> My Applications</a>
+          <a class="side-link" href="#"><span class="nav-icon">◍</span> Profile</a>
+        </nav>
+
+        <div class="side-help">
+          <div class="brand-wrap">
+            <span class="brand-mark">✦</span>
+          </div>
+          <p>Need help?</p>
+          <p>Check out our quick start guide or visit our help center.</p>
+          <a href="#" class="text-link">Learn more →</a>
+        </div>
+      </aside>
+
+      <main class="content-panel">
+        <div class="topbar-inline doc-shell">
+          <a href="{{ url_for('index') }}" class="back-link-inline">← Back to Dashboard</a>
+          <div class="user-chip">
+            <span class="user-avatar">JD</span>
+            John Doe
+          </div>
+        </div>
+
+        <div class="doc-shell">
+          <header class="doc-header">
+            <h1>Features</h1>
+            <p>Take advantage of everything APPYAI has to offer.</p>
+          </header>
+
+          <section class="feature-banner">
+            <div>
+              <span class="eyebrow">AI Powered</span>
+              <h1>Turn any job description into a tailored job application.</h1>
+              <p>
+                Our AI analyzes the job description, matches it with your CV,
+                and helps you create a compelling cover letter — all in one place.
+              </p>
+              <a href="{{ url_for('application') }}" class="primary-button large-button">Create Application →</a>
+            </div>
+
+            <div class="analysis-visual" aria-label="Application analysis preview">
+              <div class="paper-card cv">
+                <div class="paper-header"><span>CV / Resume</span></div>
+                <div class="paper-body">
+                  <div class="paper-line long"></div>
+                  <div class="paper-line mid"></div>
+                  <div class="paper-line short"></div>
+                </div>
+              </div>
+              <div class="score-bubble"><span>92%</span></div>
+              <div class="paper-card letter">
+                <div class="paper-header"><span>Cover Letter</span></div>
+                <div class="paper-body">
+                  <div class="paper-line long"></div>
+                  <div class="paper-line mid"></div>
+                  <div class="paper-line short"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section style="margin-top: 42px;">
+            <h2 style="margin: 0 0 18px; font-size: 2rem; letter-spacing: -0.06em;">How It Works</h2>
+            <p style="margin: 0 0 22px; color: #657494;">A simple 5-step process to get your tailored application.</p>
+
+            <div class="step-grid">
+              <article class="step-card">
+                <div class="step-row">
+                  <div class="step-number">1</div>
+                  <div class="card-icon">✎</div>
+                </div>
+                <h3>Add Job Description</h3>
+                <p>Paste the job description or upload a job posting.</p>
+              </article>
+
+              <article class="step-card">
+                <div class="step-row">
+                  <div class="step-number">2</div>
+                  <div class="card-icon">⇪</div>
+                </div>
+                <h3>Upload Your CV</h3>
+                <p>Upload your CV or paste it into the system.</p>
+              </article>
+
+              <article class="step-card">
+                <div class="step-row">
+                  <div class="step-number">3</div>
+                  <div class="card-icon">✎</div>
+                </div>
+                <h3>(Optional) Add Cover Letter</h3>
+                <p>Upload an existing cover letter or create one from scratch.</p>
+              </article>
+
+              <article class="step-card">
+                <div class="step-row">
+                  <div class="step-number">4</div>
+                  <div class="card-icon">⌕</div>
+                </div>
+                <h3>AI Analysis</h3>
+                <p>We compare your documents with the job requirements and find the best matches.</p>
+              </article>
+
+              <article class="step-card">
+                <div class="step-row">
+                  <div class="step-number">5</div>
+                  <div class="card-icon">↓</div>
+                </div>
+                <h3>Edit &amp; Download</h3>
+                <p>Review and edit your tailored CV and cover letter, then download as PDFs.</p>
+              </article>
+            </div>
+          </section>
+
+          <section style="margin-top: 42px;">
+            <div style="display: flex; justify-content: space-between; gap: 30px; align-items: center; margin-bottom: 18px;">
+              <h2 style="margin: 0; font-size: 2rem; letter-spacing: -0.06em;">Why Use APPYAI?</h2>
+            </div>
+            <p style="margin: 0 0 22px; color: #657494;">Save time, stand out, get hired.</p>
+
+            <div class="why-grid">
+              <article class="info-card">
+                <div class="card-icon">✓</div>
+                <h3>Tailored to the Job</h3>
+                <p>Matches your skills and experience to the role.</p>
+              </article>
+
+              <article class="info-card">
+                <div class="card-icon">✦</div>
+                <h3>AI-Powered Suggestions</h3>
+                <p>Get intelligent suggestions to improve your application.</p>
+              </article>
+
+              <article class="info-card">
+                <div class="card-icon">⚡</div>
+                <h3>Easy to Use</h3>
+                <p>Simple, step-by-step workflow for fast applications.</p>
+              </article>
+
+              <article class="info-card">
+                <div class="card-icon">🏆</div>
+                <h3>Professional Results</h3>
+                <p>Clean, polished CV and cover letters ready to send.</p>
+              </article>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
