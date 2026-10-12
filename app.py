@@ -161,7 +161,7 @@ def analyze_application(job_description, cv_text):
     }
 
 
-def generate_cover_letter(company, role, job_description, cv_text, strengths=None):
+def generate_cover_letter(company, role, job_description, cv_text, strengths=None, applicant_name=""):
     skills = extract_job_keywords(job_description)
     highlights = strengths or skills[:3]
     highlight_text = ", ".join(highlights) if highlights else "problem-solving, stakeholder engagement, and delivery"
@@ -174,8 +174,8 @@ def generate_cover_letter(company, role, job_description, cv_text, strengths=Non
         f"I understand the importance of combining clear communication, thoughtful execution, and continuous improvement, and I believe these strengths align closely with the needs of this role.\n\n"
         f"I would welcome the opportunity to bring my background, work ethic, and adaptability to {company}. "
         f"Thank you for considering my application. I would be pleased to discuss how my experience and skills can help the team achieve its goals.\n\n"
-        f"Kind regards,\n"
-        f"A candidate ready to contribute"
+        f"Kind regards,\n\n"
+        f"{applicant_name.strip() or 'Your Name'}"
     )
 
 
@@ -195,7 +195,7 @@ def tailor_cv_to_job(job_description, cv_text):
     return summary + "Experienced professional with a proven ability to contribute to business goals, support cross-functional teams, and deliver measurable outcomes."
 
 
-def build_document_pdf(document_title, document_text, company, role):
+def build_document_pdf(document_title, document_text, company, role, include_document_title=True):
     buffer = BytesIO()
     story = []
     styles = getSampleStyleSheet()
@@ -205,8 +205,9 @@ def build_document_pdf(document_title, document_text, company, role):
 
     story.append(Paragraph(f"{company} - {role}", title_style))
     story.append(Spacer(1, 10))
-    story.append(Paragraph(document_title, heading_style))
-    story.append(Spacer(1, 12))
+    if include_document_title:
+        story.append(Paragraph(document_title, heading_style))
+        story.append(Spacer(1, 12))
 
     for block in document_text.strip().split("\n\n"):
         formatted_block = block.replace("\n", "<br />")
@@ -259,6 +260,7 @@ def dashboard():
 
 @app.route("/submit", methods=["POST"])
 def submit_application():
+    applicant_name = request.form.get("applicant_name", "").strip()
     company = request.form.get("company", "Your Company").strip() or "Your Company"
     role = request.form.get("role", "Role").strip() or "Role"
     job_description = request.form.get("job_description", "").strip()
@@ -300,6 +302,7 @@ def submit_application():
             job_description,
             cv_text,
             analysis["matched_keywords"] or analysis["job_keywords"],
+            applicant_name=applicant_name,
         )
 
     tailored_cv = tailor_cv_to_job(job_description, cv_text)
@@ -417,7 +420,13 @@ def download_cv(application_id):
     tailored_cv = request.form.get("tailored_cv") if request.method == "POST" else application["tailored_cv"]
     safe_company = re.sub(r"[^a-zA-Z0-9]+", "-", application["company"]).strip("-") or "company"
     safe_role = re.sub(r"[^a-zA-Z0-9]+", "-", application["role"]).strip("-") or "role"
-    pdf_bytes = build_document_pdf("Tailored CV", tailored_cv, application["company"], application["role"])
+    pdf_bytes = build_document_pdf(
+        "Tailored CV",
+        tailored_cv,
+        application["company"],
+        application["role"],
+        include_document_title=False,
+    )
 
     return send_file(
         BytesIO(pdf_bytes),

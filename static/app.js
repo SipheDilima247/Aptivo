@@ -31,6 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const nextStep = isContinue ? currentStep + 1 : currentStep - 1;
 
       if (isContinue && nextStep <= panels.length) {
+        const activePanel = panels.find((panel) => Number(panel.dataset.step) === currentStep);
+        const invalidField = activePanel.querySelector(':invalid');
+        if (invalidField) {
+          invalidField.reportValidity();
+          return;
+        }
         updateWizard(nextStep);
       }
 

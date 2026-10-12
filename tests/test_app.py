@@ -5,7 +5,14 @@ from unittest.mock import patch
 from pypdf import PdfWriter
 from werkzeug.datastructures import FileStorage
 
-from app import OCREngineUnavailable, app, extract_file_text, get_db_connection
+from app import (
+    OCREngineUnavailable,
+    app,
+    build_document_pdf,
+    extract_file_text,
+    generate_cover_letter,
+    get_db_connection,
+)
 
 
 class CoverLetterPdfExportTests(unittest.TestCase):
@@ -46,6 +53,20 @@ class CoverLetterPdfExportTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.mimetype, "application/pdf")
         self.assertIn(b"%PDF", response.data[:4])
+
+    def test_cv_pdf_omits_document_title(self):
+        pdf_bytes = build_document_pdf(
+            "Tailored CV",
+            "Candidate experience and skills",
+            "Acme",
+            "Product Manager",
+            include_document_title=False,
+        )
+        from pypdf import PdfReader
+
+        pdf_text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages)
+        self.assertNotIn("Tailored CV", pdf_text)
+        self.assertIn("Candidate experience and skills", pdf_text)
 
     def test_cv_download_returns_pdf(self):
         with get_db_connection() as conn:
@@ -111,6 +132,19 @@ class PdfUploadFeedbackTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Tesseract OCR is not installed.", response.data)
+
+
+class GeneratedCoverLetterTests(unittest.TestCase):
+    def test_generated_letter_closes_with_applicant_name(self):
+        cover_letter = generate_cover_letter(
+            "Acme",
+            "Product Manager",
+            "Looking for product management experience",
+            "Product manager with five years of experience",
+            applicant_name="Sipho Dilima",
+        )
+
+        self.assertTrue(cover_letter.endswith("Kind regards,\n\nSipho Dilima"))
 
 
 if __name__ == "__main__":
