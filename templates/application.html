@@ -18,6 +18,9 @@
       </div>
 
       <form action="{{ url_for('submit_application') }}" method="post" enctype="multipart/form-data" class="application-form">
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+          <div class="upload-error" role="alert">{{ message }}</div>
+        {% endfor %}
         <div class="step-panel active" data-step="1">
           <div class="field-block">
             <label for="company">Company</label>
@@ -36,9 +39,13 @@
               <div class="or-divider"><span>or</span></div>
               <label class="upload-button" for="job_file">
                 <span class="upload-icon">⇪</span>
-                <span>Upload PDF / DOCX</span>
+                <span class="upload-button-text">Upload PDF / DOCX</span>
               </label>
               <input id="job_file" name="job_file" type="file" accept=".pdf,.doc,.docx,.txt" />
+              <div class="file-selection" aria-live="polite" hidden>
+                <span class="file-selection-name"></span>
+                <button class="file-remove" type="button">Remove</button>
+              </div>
             </div>
             <small>Supported formats: PDF, DOCX, TXT</small>
           </div>
@@ -55,9 +62,13 @@
               <div class="or-divider"><span>or</span></div>
               <label class="upload-button" for="cv_file">
                 <span class="upload-icon">⇪</span>
-                <span>Upload CV</span>
+                <span class="upload-button-text">Upload CV</span>
               </label>
               <input id="cv_file" name="cv_file" type="file" accept=".pdf,.doc,.docx,.txt" />
+              <div class="file-selection" aria-live="polite" hidden>
+                <span class="file-selection-name"></span>
+                <button class="file-remove" type="button">Remove</button>
+              </div>
             </div>
           </div>
           <div class="form-actions split-actions">
@@ -74,9 +85,13 @@
               <div class="or-divider"><span>or</span></div>
               <label class="upload-button" for="cover_letter_file">
                 <span class="upload-icon">⇪</span>
-                <span>Upload Cover Letter</span>
+                <span class="upload-button-text">Upload Cover Letter</span>
               </label>
               <input id="cover_letter_file" name="cover_letter_file" type="file" accept=".pdf,.doc,.docx,.txt" />
+              <div class="file-selection" aria-live="polite" hidden>
+                <span class="file-selection-name"></span>
+                <button class="file-remove" type="button">Remove</button>
+              </div>
             </div>
           </div>
           <div class="form-actions split-actions">

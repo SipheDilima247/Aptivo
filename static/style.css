@@ -857,6 +857,16 @@ body {
   display: block;
 }
 
+.upload-error {
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border: 1px solid #efb6ad;
+  border-radius: 12px;
+  background: #fff2ef;
+  color: #8f3026;
+  line-height: 1.5;
+}
+
 .step-panel {
   display: none;
   padding: 12px 0 0;
@@ -947,6 +957,42 @@ textarea {
 .upload-icon {
   font-size: 1.1rem;
   margin-right: 10px;
+}
+
+.file-selection {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(61, 99, 243, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.file-selection[hidden] {
+  display: none;
+}
+
+.file-selection-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.file-remove {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 input[type="file"] {

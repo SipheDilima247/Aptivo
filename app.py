@@ -5,12 +5,15 @@ from io import BytesIO
 from pathlib import Path
 
 from docx import Document
-from flask import Flask, redirect, render_template, request, send_file, url_for
+from flask import Flask, flash, redirect, render_template, request, send_file, url_for
 from pypdf import PdfReader
+from pypdf.errors import FileNotDecryptedError, PdfReadError
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from werkzeug.utils import secure_filename
+
+from ocr_engine import OCREngineUnavailable, ocr_pdf_pages
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "aptivo-demo-secret"
@@ -64,9 +67,23 @@ def extract_file_text(file_storage):
 
     try:
         if suffix == ".pdf":
-            reader = PdfReader(file_path)
-            pages = [page.extract_text() or "" for page in reader.pages]
-            return "\n".join(pages)
+            try:
+                reader = PdfReader(file_path)
+                if reader.is_encrypted and not reader.decrypt(""):
+                    return ""
+                pages = [page.extract_text() or "" for page in reader.pages]
+                pages_needing_ocr = [
+                    index for index, text in enumerate(pages) if len(text.strip()) < 40
+                ]
+                if pages_needing_ocr:
+                    ocr_results = ocr_pdf_pages(file_path, pages_needing_ocr)
+                    for page_number, text in ocr_results.items():
+                        if text.strip():
+                            pages[page_number] = text
+                return "\n".join(pages)
+            except (FileNotDecryptedError, PdfReadError) as error:
+                app.logger.warning("Unable to extract text from uploaded PDF %s: %s", filename, error)
+                return ""
         if suffix == ".docx":
             doc = Document(file_path)
             return "\n".join(paragraph.text for paragraph in doc.paragraphs)
@@ -252,11 +269,27 @@ def submit_application():
     uploaded_cv = request.files.get("cv_file")
     uploaded_cover = request.files.get("cover_letter_file")
 
-    job_description = job_description or extract_file_text(uploaded_job)
-    cv_text = cv_text or extract_file_text(uploaded_cv)
-    cover_letter_text = cover_letter_text or extract_file_text(uploaded_cover)
+    try:
+        job_description = job_description or extract_file_text(uploaded_job)
+        cv_text = cv_text or extract_file_text(uploaded_cv)
+        cover_letter_text = cover_letter_text or extract_file_text(uploaded_cover)
+    except OCREngineUnavailable as error:
+        flash(str(error), "error")
+        return redirect(url_for("application"))
 
     if not job_description or not cv_text:
+        if not job_description:
+            flash(
+                "We couldn't read the job description. Upload a text-based PDF or paste the text; "
+                "if it is scanned, check that OCR is installed or paste the text.",
+                "error",
+            )
+        if not cv_text:
+            flash(
+                "We couldn't read your CV. Upload a text-based PDF or paste the text; "
+                "if it is scanned, check that OCR is installed or paste the text.",
+                "error",
+            )
         return redirect(url_for("application"))
 
     analysis = analyze_application(job_description, cv_text)

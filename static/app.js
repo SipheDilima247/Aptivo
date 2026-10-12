@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressFill = document.querySelector('.progress-fill');
   const counter = document.querySelector('.wizard-counter');
   const buttons = [...document.querySelectorAll('.continue-btn, .back-btn')];
+  const fileInputs = [...document.querySelectorAll('input[type="file"]')];
 
   let currentStep = 1;
 
@@ -36,6 +37,38 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!isContinue && nextStep >= 1) {
         updateWizard(nextStep);
       }
+    });
+  });
+
+  fileInputs.forEach((input) => {
+    const uploadRow = input.closest('.upload-row');
+    const uploadLabel = uploadRow.querySelector('.upload-button-text');
+    const defaultLabel = uploadLabel.textContent;
+    const selection = uploadRow.querySelector('.file-selection');
+    const filename = selection.querySelector('.file-selection-name');
+    const removeButton = selection.querySelector('.file-remove');
+
+    function updateFileSelection() {
+      const file = input.files[0];
+      if (!file) {
+        selection.hidden = true;
+        filename.textContent = '';
+        uploadLabel.textContent = defaultLabel;
+        return;
+      }
+
+      const size = file.size < 1024 * 1024
+        ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+      filename.textContent = `${file.name} · ${size}`;
+      selection.hidden = false;
+      uploadLabel.textContent = 'Change file';
+    }
+
+    input.addEventListener('change', updateFileSelection);
+    removeButton.addEventListener('click', () => {
+      input.value = '';
+      updateFileSelection();
     });
   });
 
