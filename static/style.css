@@ -606,6 +606,76 @@ body {
   background: var(--primary);
 }
 
+.site-footer {
+  border-top: 1px solid rgba(127, 141, 206, 0.2);
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.site-footer-content {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.site-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: inherit;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.site-footer-brand .brand-mark {
+  width: 24px;
+  height: 24px;
+  font-size: 0.76rem;
+}
+
+.site-footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.site-footer-links a {
+  color: var(--muted);
+}
+
+.site-footer-links a:not(.site-footer-contact) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.site-footer-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.site-footer-links .site-footer-contact {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(61, 99, 243, 0.1);
+  color: var(--primary);
+}
+
+.site-footer-copyright {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
