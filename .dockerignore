@@ -2,6 +2,7 @@
 .gitignore
 .env
 .env.*
+Aptivo.env
 __pycache__/
 *.py[cod]
 *.db
