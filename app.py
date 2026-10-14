@@ -16,23 +16,55 @@ from werkzeug.utils import secure_filename
 from ocr_engine import OCREngineUnavailable, ocr_pdf_pages
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "aptivo-demo-secret"
+
+
+def get_secret_key():
+    secret_key = os.environ.get("SECRET_KEY")
+    if secret_key:
+        return secret_key
+    if os.environ.get("DATABASE_URL"):
+        raise RuntimeError("Set SECRET_KEY when DATABASE_URL is configured.")
+    return "aptivo-local-development-only"
+
+
+app.config["SECRET_KEY"] = get_secret_key()
 app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 
 def get_db_connection():
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        return psycopg.connect(database_url, row_factory=dict_row, connect_timeout=10)
+
     conn = sqlite3.connect("applications.db")
     conn.row_factory = sqlite3.Row
     return conn
 
 
+def execute_query(conn, statement, parameters=()):
+    if isinstance(conn, sqlite3.Connection):
+        return conn.execute(statement, parameters)
+    return conn.execute(statement.replace("?", "%s"), parameters)
+
+
 def init_db():
     with get_db_connection() as conn:
-        conn.execute(
-            """
+        id_column = (
+            "INTEGER PRIMARY KEY AUTOINCREMENT"
+            if isinstance(conn, sqlite3.Connection)
+            else "BIGSERIAL PRIMARY KEY"
+        )
+        execute_query(
+            conn,
+            f"""
             CREATE TABLE IF NOT EXISTS applications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_column},
                 company TEXT,
                 role TEXT,
                 job_description TEXT,
@@ -45,12 +77,18 @@ def init_db():
                 gaps TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
+            """,
         )
 
-        columns = [row[1] for row in conn.execute("PRAGMA table_info(applications)").fetchall()]
-        if "tailored_cv" not in columns:
-            conn.execute("ALTER TABLE applications ADD COLUMN tailored_cv TEXT")
+        if isinstance(conn, sqlite3.Connection):
+            columns = [row[1] for row in conn.execute("PRAGMA table_info(applications)").fetchall()]
+            if "tailored_cv" not in columns:
+                conn.execute("ALTER TABLE applications ADD COLUMN tailored_cv TEXT")
+        else:
+            execute_query(
+                conn,
+                "ALTER TABLE applications ADD COLUMN IF NOT EXISTS tailored_cv TEXT",
+            )
 
         conn.commit()
 
@@ -252,7 +290,8 @@ def application():
 @app.route("/dashboard")
 def dashboard():
     with get_db_connection() as conn:
-        rows = conn.execute(
+        rows = execute_query(
+            conn,
             "SELECT * FROM applications ORDER BY id DESC LIMIT 5"
         ).fetchall()
     return render_template("dashboard.html", applications=rows)
@@ -308,11 +347,15 @@ def submit_application():
     tailored_cv = tailor_cv_to_job(job_description, cv_text)
 
     with get_db_connection() as conn:
-        cursor = conn.execute(
-            """
+        insert_statement = """
             INSERT INTO applications (company, role, job_description, cv_text, tailored_cv, cover_letter, match_score, summary, strengths, gaps)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
+        """
+        if not isinstance(conn, sqlite3.Connection):
+            insert_statement += " RETURNING id"
+        cursor = execute_query(
+            conn,
+            insert_statement,
             (
                 company,
                 role,
@@ -326,7 +369,11 @@ def submit_application():
                 "; ".join(analysis["gaps"]),
             ),
         )
-        app_id = cursor.lastrowid
+        app_id = (
+            cursor.lastrowid
+            if isinstance(conn, sqlite3.Connection)
+            else cursor.fetchone()["id"]
+        )
         conn.commit()
 
     return redirect(url_for("result", application_id=app_id))
@@ -335,7 +382,8 @@ def submit_application():
 @app.route("/result/<int:application_id>")
 def result(application_id):
     with get_db_connection() as conn:
-        application = conn.execute(
+        application = execute_query(
+            conn,
             "SELECT * FROM applications WHERE id = ?",
             (application_id,),
         ).fetchone()
@@ -357,7 +405,8 @@ def result(application_id):
 @app.route("/save-documents/<int:application_id>", methods=["POST"])
 def save_documents(application_id):
     with get_db_connection() as conn:
-        application = conn.execute(
+        application = execute_query(
+            conn,
             "SELECT * FROM applications WHERE id = ?",
             (application_id,),
         ).fetchone()
@@ -368,12 +417,14 @@ def save_documents(application_id):
         cover_letter = request.form.get("cover_letter")
 
         if tailored_cv is not None:
-            conn.execute(
+            execute_query(
+                conn,
                 "UPDATE applications SET tailored_cv = ? WHERE id = ?",
                 (tailored_cv, application_id),
             )
         if cover_letter is not None:
-            conn.execute(
+            execute_query(
+                conn,
                 "UPDATE applications SET cover_letter = ? WHERE id = ?",
                 (cover_letter, application_id),
             )
@@ -385,7 +436,8 @@ def save_documents(application_id):
 @app.route("/download/<int:application_id>", methods=["GET", "POST"])
 def download_cover_letter(application_id):
     with get_db_connection() as conn:
-        application = conn.execute(
+        application = execute_query(
+            conn,
             "SELECT * FROM applications WHERE id = ?",
             (application_id,),
         ).fetchone()
@@ -409,7 +461,8 @@ def download_cover_letter(application_id):
 @app.route("/download-cv/<int:application_id>", methods=["GET", "POST"])
 def download_cv(application_id):
     with get_db_connection() as conn:
-        application = conn.execute(
+        application = execute_query(
+            conn,
             "SELECT * FROM applications WHERE id = ?",
             (application_id,),
         ).fetchone()
@@ -437,6 +490,11 @@ def download_cv(application_id):
 
 
 init_db()
+
+
+@app.route("/healthz")
+def health_check():
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":

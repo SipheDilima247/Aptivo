@@ -10,7 +10,9 @@ from app import (
     app,
     build_document_pdf,
     extract_file_text,
+    execute_query,
     generate_cover_letter,
+    get_secret_key,
     get_db_connection,
 )
 
@@ -145,6 +147,32 @@ class GeneratedCoverLetterTests(unittest.TestCase):
         )
 
         self.assertTrue(cover_letter.endswith("Kind regards,\n\nSipho Dilima"))
+
+
+class DatabaseBackendTests(unittest.TestCase):
+    def test_postgres_queries_use_psycopg_placeholders(self):
+        class RecordingConnection:
+            def execute(self, statement, parameters):
+                return statement, parameters
+
+        connection = RecordingConnection()
+        statement, parameters = execute_query(
+            connection,
+            "SELECT * FROM applications WHERE id = ?",
+            (12,),
+        )
+
+        self.assertEqual(statement, "SELECT * FROM applications WHERE id = %s")
+        self.assertEqual(parameters, (12,))
+
+    def test_postgres_requires_a_configured_secret_key(self):
+        with patch.dict("os.environ", {"DATABASE_URL": "postgresql://example"}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "Set SECRET_KEY"):
+                get_secret_key()
+
+    def test_local_development_uses_development_secret(self):
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(get_secret_key(), "aptivo-local-development-only")
 
 
 if __name__ == "__main__":
