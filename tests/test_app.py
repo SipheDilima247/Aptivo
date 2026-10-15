@@ -11,9 +11,11 @@ from app import (
     build_document_pdf,
     extract_file_text,
     execute_query,
+    extract_job_keywords,
     generate_cover_letter,
     get_secret_key,
     get_db_connection,
+    tailor_cv_to_job,
 )
 
 
@@ -137,6 +139,13 @@ class PdfUploadFeedbackTests(unittest.TestCase):
 
 
 class GeneratedCoverLetterTests(unittest.TestCase):
+    def test_job_keywords_drop_boilerplate_and_terminal_punctuation(self):
+        keywords = extract_job_keywords(
+            "Looking for Python data analysis and dashboard reporting experience."
+        )
+
+        self.assertEqual(keywords, ["python", "data", "analysis", "dashboard", "reporting"])
+
     def test_generated_letter_closes_with_applicant_name(self):
         cover_letter = generate_cover_letter(
             "Acme",
@@ -147,6 +156,49 @@ class GeneratedCoverLetterTests(unittest.TestCase):
         )
 
         self.assertTrue(cover_letter.endswith("Kind regards,\n\nSipho Dilima"))
+
+    def test_cover_letter_uses_cv_evidence_without_generic_claims(self):
+        cover_letter = generate_cover_letter(
+            "Example Co",
+            "Data Analyst",
+            "Looking for Python data analysis and dashboard reporting experience.",
+            "Experience: Built Python dashboards for monthly sales reporting.\n"
+            "Managed warehouse inventory for three years.",
+            applicant_name="Sipho Dilima",
+        )
+
+        self.assertIn("Built Python dashboards for monthly sales reporting", cover_letter)
+        self.assertNotIn("stakeholder collaboration", cover_letter)
+        self.assertNotIn("measurable business impact", cover_letter)
+        self.assertTrue(cover_letter.endswith("Kind regards,\n\nSipho Dilima"))
+
+    def test_cover_letter_flags_missing_cv_evidence(self):
+        cover_letter = generate_cover_letter(
+            "Example Co",
+            "Data Analyst",
+            "Looking for Python data analysis experience.",
+            "Managed warehouse inventory for three years.",
+            applicant_name="Sipho Dilima",
+        )
+
+        self.assertIn("does not show a specific example", cover_letter)
+        self.assertNotIn("my experience in Python", cover_letter)
+
+    def test_tailored_cv_preserves_source_and_selects_relevant_evidence(self):
+        source_cv = (
+            "Experience: Built Python dashboards for monthly sales reporting.\n"
+            "Managed warehouse inventory for three years."
+        )
+
+        tailored_cv = tailor_cv_to_job(
+            "Looking for Python data analysis and dashboard reporting experience.",
+            source_cv,
+        )
+
+        self.assertIn("Built Python dashboards for monthly sales reporting", tailored_cv)
+        self.assertIn("Original CV (wording preserved)", tailored_cv)
+        self.assertTrue(tailored_cv.endswith(source_cv))
+        self.assertNotIn("measurable business impact", tailored_cv)
 
 
 class DatabaseBackendTests(unittest.TestCase):

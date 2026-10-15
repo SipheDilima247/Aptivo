@@ -139,7 +139,7 @@ def extract_file_text(file_storage):
 def tokenize(text):
     if not text:
         return []
-    return re.findall(r"[a-zA-Z][a-zA-Z0-9+.#/-]{2,}", text.lower())
+    return [token.rstrip(".") for token in re.findall(r"[a-zA-Z][a-zA-Z0-9+.#/-]{2,}", text.lower())]
 
 
 def normalize_skills(text):
@@ -150,7 +150,8 @@ def normalize_skills(text):
         "job", "company", "candidate", "position", "experience", "applications",
         "strong", "skills", "team", "work", "working", "using", "across", "through",
         "ensure", "build", "support", "deliver", "develop", "create", "including",
-        "using", "business", "customer", "products", "project", "projects"
+        "using", "business", "customer", "products", "project", "projects", "for",
+        "looking", "seeking", "required", "requirements", "preferred", "responsibilities"
     }
     return [word for word in words if word not in stop_words]
 
@@ -199,38 +200,80 @@ def analyze_application(job_description, cv_text):
     }
 
 
+def select_relevant_cv_evidence(job_description, cv_text, limit=3):
+    job_keywords = set(extract_job_keywords(job_description))
+    if not job_keywords or not cv_text.strip():
+        return []
+
+    ranked_segments = []
+    segments = re.split(r"(?<=[.!?])\s+|\n+", cv_text.strip())
+    for position, segment in enumerate(segments):
+        cleaned_segment = segment.strip().lstrip("-*• ").strip()
+        if len(cleaned_segment) < 8:
+            continue
+        matched_keywords = job_keywords.intersection(normalize_skills(cleaned_segment))
+        if matched_keywords:
+            ranked_segments.append((len(matched_keywords), position, cleaned_segment))
+
+    ranked_segments.sort(key=lambda item: (-item[0], item[1]))
+    return [segment for _, _, segment in ranked_segments[:limit]]
+
+
 def generate_cover_letter(company, role, job_description, cv_text, strengths=None, applicant_name=""):
-    skills = extract_job_keywords(job_description)
-    highlights = strengths or skills[:3]
-    highlight_text = ", ".join(highlights) if highlights else "problem-solving, stakeholder engagement, and delivery"
+    cv_keywords = set(normalize_skills(cv_text))
+    requested_keywords = strengths or extract_job_keywords(job_description)
+    supported_keywords = [keyword for keyword in requested_keywords if keyword in cv_keywords]
+    relevant_evidence = select_relevant_cv_evidence(job_description, cv_text)
+
+    if relevant_evidence:
+        evidence_paragraph = (
+            "Relevant details already present in my CV include:\n"
+            + "\n".join(f"- {evidence}" for evidence in relevant_evidence)
+        )
+    else:
+        evidence_paragraph = (
+            "The supplied CV does not show a specific example that directly matches this posting. "
+            "I have kept this draft general rather than claiming experience that is not in the CV; "
+            "add a relevant example before sending."
+        )
+
+    if supported_keywords:
+        focus_paragraph = (
+            "The posting emphasizes "
+            f"{', '.join(supported_keywords[:5])}, which also appear in my CV."
+        )
+    else:
+        focus_paragraph = f"I am interested in the {role} opportunity at {company}."
 
     return (
-        f"Dear Hiring Manager,\n\n"
-        f"I am writing to express my enthusiasm for the {role} opportunity at {company}. "
-        f"I am excited by the chance to contribute my experience in {highlight_text} to a team focused on delivering meaningful results.\n\n"
-        f"In my previous work, I have built a strong track record of translating goals into practical outcomes, working effectively across teams, and creating deliverables that support both customer value and business priorities. "
-        f"I understand the importance of combining clear communication, thoughtful execution, and continuous improvement, and I believe these strengths align closely with the needs of this role.\n\n"
-        f"I would welcome the opportunity to bring my background, work ethic, and adaptability to {company}. "
-        f"Thank you for considering my application. I would be pleased to discuss how my experience and skills can help the team achieve its goals.\n\n"
+        "Dear Hiring Manager,\n\n"
+        f"I am applying for the {role} opportunity at {company}. {focus_paragraph}\n\n"
+        f"{evidence_paragraph}\n\n"
+        f"I would welcome the opportunity to discuss how these examples relate to the needs of the role. "
+        f"Thank you for considering my application.\n\n"
         f"Kind regards,\n\n"
         f"{applicant_name.strip() or 'Your Name'}"
     )
 
 
 def tailor_cv_to_job(job_description, cv_text):
-    keywords = extract_job_keywords(job_description)
-    highlight_text = ", ".join(keywords[:5]) if keywords else "stakeholder management, analytics, strategy, and delivery"
-    summary = (
-        "Professional Summary:\n"
-        f"Results-driven professional with experience in {highlight_text}. Brings a strong track record of stakeholder collaboration, operational delivery, and measurable business impact. Skilled at aligning team priorities with strategic objectives and translating requirements into clear, effective execution.\n\n"
-        "Core Skills:\n"
-        f"{highlight_text}\n\n"
-        "Relevant Experience:\n"
-    )
+    source_cv = cv_text.strip()
+    relevant_evidence = select_relevant_cv_evidence(job_description, source_cv, limit=5)
 
-    if cv_text.strip():
-        return summary + cv_text.strip()
-    return summary + "Experienced professional with a proven ability to contribute to business goals, support cross-functional teams, and deliver measurable outcomes."
+    if relevant_evidence:
+        relevance_section = (
+            "Relevant details selected from your CV:\n"
+            + "\n".join(f"- {evidence}" for evidence in relevant_evidence)
+        )
+    else:
+        relevance_section = (
+            "No direct examples matching this job description were found in the CV. "
+            "Review and tailor the original wording manually."
+        )
+
+    if not source_cv:
+        return relevance_section
+    return f"{relevance_section}\n\nOriginal CV (wording preserved):\n{source_cv}"
 
 
 def build_document_pdf(document_title, document_text, company, role, include_document_title=True):
