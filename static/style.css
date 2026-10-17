@@ -983,6 +983,34 @@ textarea {
   font-size: 0.9rem;
 }
 
+.learning-consent {
+  margin-top: 20px;
+  color: var(--muted);
+}
+
+.learning-consent label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.learning-consent input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+  accent-color: var(--primary);
+}
+
+.learning-consent p {
+  max-width: 680px;
+  margin: 6px 0 0 26px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .file-remove {
   flex: 0 0 auto;
   border: 0;

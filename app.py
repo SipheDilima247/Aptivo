@@ -1,11 +1,14 @@
 import os
 import re
 import sqlite3
+from difflib import SequenceMatcher
 from io import BytesIO
 from pathlib import Path
+from datetime import timedelta
+from uuid import uuid4
 
 from docx import Document
-from flask import Flask, flash, redirect, render_template, request, send_file, url_for
+from flask import Flask, flash, redirect, render_template, request, send_file, session, url_for
 from pypdf import PdfReader
 from pypdf.errors import FileNotDecryptedError, PdfReadError
 from reportlab.lib.pagesizes import letter
@@ -28,8 +31,21 @@ def get_secret_key():
 
 
 app.config["SECRET_KEY"] = get_secret_key()
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+
+def get_anonymous_owner_id():
+    owner_id = session.get("anonymous_owner_id")
+    if owner_id is None:
+        owner_id = str(uuid4())
+        session["anonymous_owner_id"] = owner_id
+    session.permanent = True
+    return owner_id
 
 
 def get_db_connection():
@@ -75,6 +91,9 @@ def init_db():
                 summary TEXT,
                 strengths TEXT,
                 gaps TEXT,
+                owner_id TEXT,
+                learning_consent BOOLEAN NOT NULL DEFAULT FALSE,
+                learning_recorded BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """,
@@ -82,13 +101,39 @@ def init_db():
 
         if isinstance(conn, sqlite3.Connection):
             columns = [row[1] for row in conn.execute("PRAGMA table_info(applications)").fetchall()]
-            if "tailored_cv" not in columns:
-                conn.execute("ALTER TABLE applications ADD COLUMN tailored_cv TEXT")
+            migrations = {
+                "tailored_cv": "TEXT",
+                "owner_id": "TEXT",
+                "learning_consent": "BOOLEAN NOT NULL DEFAULT FALSE",
+                "learning_recorded": "BOOLEAN NOT NULL DEFAULT FALSE",
+            }
+            for column, definition in migrations.items():
+                if column not in columns:
+                    conn.execute(f"ALTER TABLE applications ADD COLUMN {column} {definition}")
         else:
             execute_query(
                 conn,
                 "ALTER TABLE applications ADD COLUMN IF NOT EXISTS tailored_cv TEXT",
             )
+            execute_query(conn, "ALTER TABLE applications ADD COLUMN IF NOT EXISTS owner_id TEXT")
+            execute_query(
+                conn,
+                "ALTER TABLE applications ADD COLUMN IF NOT EXISTS learning_consent BOOLEAN NOT NULL DEFAULT FALSE",
+            )
+            execute_query(
+                conn,
+                "ALTER TABLE applications ADD COLUMN IF NOT EXISTS learning_recorded BOOLEAN NOT NULL DEFAULT FALSE",
+            )
+
+        execute_query(
+            conn,
+            """
+            CREATE TABLE IF NOT EXISTS cv_style_feedback (
+                feature TEXT PRIMARY KEY,
+                observations BIGINT NOT NULL DEFAULT 0
+            )
+            """,
+        )
 
         conn.commit()
 
@@ -200,30 +245,141 @@ def analyze_application(job_description, cv_text):
     }
 
 
-def select_relevant_cv_evidence(job_description, cv_text, limit=3):
+def get_cv_style_preferences(min_observations=5):
+    with get_db_connection() as conn:
+        rows = execute_query(
+            conn,
+            "SELECT feature, observations FROM cv_style_feedback",
+        ).fetchall()
+    counts = {row["feature"]: row["observations"] for row in rows}
+    total_observations = counts.get("cv_observations", 0)
+    if total_observations < min_observations:
+        return set()
+    return {
+        feature
+        for feature in {"action_led_opening", "bullet_format", "first_person_voice", "quantified_results"}
+        if counts.get(feature, 0) >= min_observations
+        and counts[feature] / total_observations >= 0.6
+    }
+
+
+def select_relevant_cv_evidence(job_description, cv_text, limit=3, style_preferences=None):
     job_keywords = set(extract_job_keywords(job_description))
     if not job_keywords or not cv_text.strip():
         return []
 
+    style_preferences = style_preferences or set()
     ranked_segments = []
     segments = re.split(r"(?<=[.!?])\s+|\n+", cv_text.strip())
-    for position, segment in enumerate(segments):
-        cleaned_segment = segment.strip().lstrip("-*• ").strip()
+    for position, raw_segment in enumerate(segments):
+        cleaned_segment = raw_segment.strip().lstrip("-*• ").strip()
         if len(cleaned_segment) < 8:
             continue
         matched_keywords = job_keywords.intersection(normalize_skills(cleaned_segment))
         if matched_keywords:
-            ranked_segments.append((len(matched_keywords), position, cleaned_segment))
+            style_score = 0
+            is_bullet = bool(re.match(r"^\s*[-*•]\s+", raw_segment))
+            uses_first_person = bool(re.search(r"\b(?:I|my|me|we|our)\b", cleaned_segment, re.IGNORECASE))
+            opening = re.match(r"^(?:[-*•]\s*)?([A-Za-z]+)\b", cleaned_segment)
+            if "bullet_format" in style_preferences and is_bullet:
+                style_score += 1
+            if "first_person_voice" in style_preferences and uses_first_person:
+                style_score += 1
+            if (
+                "action_led_opening" in style_preferences
+                and opening
+                and opening.group(1).lower() in {
+                    "analyzed", "automated", "built", "created", "delivered", "designed",
+                    "developed", "improved", "increased", "launched", "led", "managed",
+                    "reduced", "implemented", "organized", "optimized", "coordinated",
+                }
+            ):
+                style_score += 1
+            if (
+                "quantified_results" in style_preferences
+                and re.search(r"\b\d+(?:[,.]\d+)*(?:%|\+)?\b", cleaned_segment)
+            ):
+                style_score += 1
+            ranked_segments.append((len(matched_keywords), style_score, position, cleaned_segment))
 
-    ranked_segments.sort(key=lambda item: (-item[0], item[1]))
-    return [segment for _, _, segment in ranked_segments[:limit]]
+    ranked_segments.sort(key=lambda item: (-item[0], -item[1], item[2]))
+    return [segment for _, _, _, segment in ranked_segments[:limit]]
+
+
+def extract_cv_style_signals(cv_text):
+    lines = [line.strip() for line in cv_text.splitlines() if line.strip()]
+    if not lines:
+        return set()
+
+    signals = set()
+    if any(re.match(r"^[-*•]\s+", line) for line in lines):
+        signals.add("bullet_format")
+    if re.search(r"\b(?:I|my|me|we|our)\b", cv_text, re.IGNORECASE):
+        signals.add("first_person_voice")
+    if re.search(r"\b\d+(?:[,.]\d+)*(?:%|\+)?\b", cv_text):
+        signals.add("quantified_results")
+
+    action_verbs = {
+        "analyzed", "automated", "built", "created", "delivered", "designed",
+        "developed", "improved", "increased", "launched", "led", "managed",
+        "reduced", "implemented", "organized", "optimized", "coordinated",
+    }
+    for line in lines:
+        match = re.match(r"^(?:[-*•]\s*)?([A-Za-z]+)\b", line)
+        if match and match.group(1).lower() in action_verbs:
+            signals.add("action_led_opening")
+            break
+
+    return signals
+
+
+def extract_user_edited_cv_text(previous_cv, updated_cv):
+    previous_lines = previous_cv.splitlines()
+    updated_lines = updated_cv.splitlines()
+    changes = SequenceMatcher(None, previous_lines, updated_lines, autojunk=False)
+    edited_lines = []
+    for operation, _, _, updated_start, updated_end in changes.get_opcodes():
+        if operation in {"insert", "replace"}:
+            edited_lines.extend(updated_lines[updated_start:updated_end])
+    return "\n".join(edited_lines)
+
+
+def record_cv_style_feedback(conn, cv_text):
+    style_signals = extract_cv_style_signals(cv_text)
+    execute_query(
+        conn,
+        """
+        INSERT INTO cv_style_feedback (feature, observations)
+        VALUES (?, 1)
+        ON CONFLICT(feature) DO UPDATE
+        SET observations = cv_style_feedback.observations + 1
+        """,
+        ("cv_observations",),
+    )
+    for feature in style_signals:
+        execute_query(
+            conn,
+            """
+            INSERT INTO cv_style_feedback (feature, observations)
+            VALUES (?, 1)
+            ON CONFLICT(feature) DO UPDATE
+            SET observations = cv_style_feedback.observations + 1
+            """,
+            (feature,),
+        )
+    return style_signals
 
 
 def generate_cover_letter(company, role, job_description, cv_text, strengths=None, applicant_name=""):
+    style_preferences = get_cv_style_preferences()
     cv_keywords = set(normalize_skills(cv_text))
     requested_keywords = strengths or extract_job_keywords(job_description)
     supported_keywords = [keyword for keyword in requested_keywords if keyword in cv_keywords]
-    relevant_evidence = select_relevant_cv_evidence(job_description, cv_text)
+    relevant_evidence = select_relevant_cv_evidence(
+        job_description,
+        cv_text,
+        style_preferences=style_preferences,
+    )
 
     if relevant_evidence:
         evidence_paragraph = (
@@ -257,8 +413,14 @@ def generate_cover_letter(company, role, job_description, cv_text, strengths=Non
 
 
 def tailor_cv_to_job(job_description, cv_text):
+    style_preferences = get_cv_style_preferences()
     source_cv = cv_text.strip()
-    relevant_evidence = select_relevant_cv_evidence(job_description, source_cv, limit=5)
+    relevant_evidence = select_relevant_cv_evidence(
+        job_description,
+        source_cv,
+        limit=5,
+        style_preferences=style_preferences,
+    )
 
     if relevant_evidence:
         relevance_section = (
@@ -327,27 +489,32 @@ def how_it_works():
 
 @app.route("/application")
 def application():
+    get_anonymous_owner_id()
     return render_template("application.html")
 
 
 @app.route("/dashboard")
 def dashboard():
+    owner_id = get_anonymous_owner_id()
     with get_db_connection() as conn:
         rows = execute_query(
             conn,
-            "SELECT * FROM applications ORDER BY id DESC LIMIT 5"
+            "SELECT * FROM applications WHERE owner_id = ? ORDER BY id DESC LIMIT 5",
+            (owner_id,),
         ).fetchall()
     return render_template("dashboard.html", applications=rows)
 
 
 @app.route("/submit", methods=["POST"])
 def submit_application():
+    owner_id = get_anonymous_owner_id()
     applicant_name = request.form.get("applicant_name", "").strip()
     company = request.form.get("company", "Your Company").strip() or "Your Company"
     role = request.form.get("role", "Role").strip() or "Role"
     job_description = request.form.get("job_description", "").strip()
     cv_text = request.form.get("cv_text", "").strip()
     cover_letter_text = request.form.get("cover_letter_text", "").strip()
+    learning_consent = request.form.get("learning_consent") == "yes"
 
     uploaded_job = request.files.get("job_file")
     uploaded_cv = request.files.get("cv_file")
@@ -391,8 +558,8 @@ def submit_application():
 
     with get_db_connection() as conn:
         insert_statement = """
-            INSERT INTO applications (company, role, job_description, cv_text, tailored_cv, cover_letter, match_score, summary, strengths, gaps)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO applications (company, role, job_description, cv_text, tailored_cv, cover_letter, match_score, summary, strengths, gaps, owner_id, learning_consent, learning_recorded)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         if not isinstance(conn, sqlite3.Connection):
             insert_statement += " RETURNING id"
@@ -410,6 +577,9 @@ def submit_application():
                 analysis["summary"],
                 "; ".join(analysis["strengths"]),
                 "; ".join(analysis["gaps"]),
+                owner_id,
+                learning_consent,
+                False,
             ),
         )
         app_id = (
@@ -424,11 +594,12 @@ def submit_application():
 
 @app.route("/result/<int:application_id>")
 def result(application_id):
+    owner_id = get_anonymous_owner_id()
     with get_db_connection() as conn:
         application = execute_query(
             conn,
-            "SELECT * FROM applications WHERE id = ?",
-            (application_id,),
+            "SELECT * FROM applications WHERE id = ? AND owner_id = ?",
+            (application_id, owner_id),
         ).fetchone()
 
     if application is None:
@@ -447,11 +618,12 @@ def result(application_id):
 
 @app.route("/save-documents/<int:application_id>", methods=["POST"])
 def save_documents(application_id):
+    owner_id = get_anonymous_owner_id()
     with get_db_connection() as conn:
         application = execute_query(
             conn,
-            "SELECT * FROM applications WHERE id = ?",
-            (application_id,),
+            "SELECT * FROM applications WHERE id = ? AND owner_id = ?",
+            (application_id, owner_id),
         ).fetchone()
         if application is None:
             return redirect(url_for("index"))
@@ -462,15 +634,29 @@ def save_documents(application_id):
         if tailored_cv is not None:
             execute_query(
                 conn,
-                "UPDATE applications SET tailored_cv = ? WHERE id = ?",
-                (tailored_cv, application_id),
+                "UPDATE applications SET tailored_cv = ? WHERE id = ? AND owner_id = ?",
+                (tailored_cv, application_id, owner_id),
             )
         if cover_letter is not None:
             execute_query(
                 conn,
-                "UPDATE applications SET cover_letter = ? WHERE id = ?",
-                (cover_letter, application_id),
+                "UPDATE applications SET cover_letter = ? WHERE id = ? AND owner_id = ?",
+                (cover_letter, application_id, owner_id),
             )
+        if (
+            tailored_cv is not None
+            and application["learning_consent"]
+            and not application["learning_recorded"]
+            and tailored_cv != application["tailored_cv"]
+        ):
+            user_edited_cv = extract_user_edited_cv_text(application["tailored_cv"], tailored_cv)
+            if user_edited_cv.strip():
+                record_cv_style_feedback(conn, user_edited_cv)
+                execute_query(
+                    conn,
+                    "UPDATE applications SET learning_recorded = ? WHERE id = ? AND owner_id = ?",
+                    (True, application_id, owner_id),
+                )
         conn.commit()
 
     return redirect(url_for("result", application_id=application_id))
@@ -478,11 +664,12 @@ def save_documents(application_id):
 
 @app.route("/download/<int:application_id>", methods=["GET", "POST"])
 def download_cover_letter(application_id):
+    owner_id = get_anonymous_owner_id()
     with get_db_connection() as conn:
         application = execute_query(
             conn,
-            "SELECT * FROM applications WHERE id = ?",
-            (application_id,),
+            "SELECT * FROM applications WHERE id = ? AND owner_id = ?",
+            (application_id, owner_id),
         ).fetchone()
 
     if application is None:
@@ -503,11 +690,12 @@ def download_cover_letter(application_id):
 
 @app.route("/download-cv/<int:application_id>", methods=["GET", "POST"])
 def download_cv(application_id):
+    owner_id = get_anonymous_owner_id()
     with get_db_connection() as conn:
         application = execute_query(
             conn,
-            "SELECT * FROM applications WHERE id = ?",
-            (application_id,),
+            "SELECT * FROM applications WHERE id = ? AND owner_id = ?",
+            (application_id, owner_id),
         ).fetchone()
 
     if application is None:

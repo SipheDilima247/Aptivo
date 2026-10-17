@@ -46,7 +46,9 @@ When deploying with PostgreSQL, also set `SECRET_KEY` in the Render web service'
 
 The repository includes a `render.yaml` Blueprint for a free preview. Push the repository to GitHub, then in Render choose **New > Blueprint** and select the repository. Render creates a Docker web service and a free Postgres database, then connects them with `DATABASE_URL` and generates `SECRET_KEY`.
 
-This free Postgres database expires after 30 days, and the free web service can sleep while idle. The app currently has no user authentication, so its dashboard and application records are not private. Use synthetic test documents only; do not upload real CVs or personal information. Upgrade storage and add authentication before a production launch.
+This free Postgres database expires after 30 days, and the free web service can sleep while idle. Aptivo currently has no signup; it scopes applications to a signed, 30-day browser cookie, so clearing browser cookies loses access and another browser/device cannot recover those records. This is anonymous browser isolation, not account authentication. For a manually configured Render service, set `SESSION_COOKIE_SECURE=true` in its environment variables; the Blueprint sets it automatically. Keep using synthetic documents until account recovery and production-grade access controls are implemented.
+
+The optional CV-learning checkbox is off by default. If enabled, Aptivo compares the saved CV with its prior draft and records aggregate style counters only for lines the user added or replaced (such as bullet use, first-person voice, action-led openings, and quantified results). It never copies those lines or raw CV text into the shared feedback table. Once at least five opted-in CV edits have been recorded, patterns seen in at least 60% of them can break ties when selecting equally relevant CV examples for future drafts. This adjusts evidence ordering; it does not train or fine-tune a model.
 
 ### OCR setup
 
